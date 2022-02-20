@@ -1,0 +1,3 @@
+[submodule "modules/go"]
+	path = modules/go
+	url = git@github.com:irfansharif/go.git
