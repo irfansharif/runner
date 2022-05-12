@@ -67,6 +67,110 @@ func TestInternalDuration(t *testing.T) {
 	}
 }
 
+// TestEquivalentGoroutines is a variant of the "parallel test" in
+// https://github.com/golang/go/issues/36821. It tests whether goroutines that
+// (should) spend the same amount of time on-CPU have similar measured on-CPU
+// time.
+func TestEquivalentGoroutines(t *testing.T) {
+	mu := struct {
+		sync.Mutex
+		nanos map[int]int64
+	}{}
+	mu.nanos = make(map[int]int64)
+
+	f := func(wg *sync.WaitGroup, id int) {
+		defer wg.Done()
+
+		var sum int
+		for i := 0; i < 500000000; i++ {
+			sum -= i / 2
+			sum *= i
+			sum /= i/3 + 1
+			sum -= i / 4
+		}
+
+		nanos := grunningnanos()
+		mu.Lock()
+		mu.nanos[id] = nanos
+		mu.Unlock()
+	}
+
+	var wg sync.WaitGroup
+	for i := 0; i < 10; i++ {
+		i := i // copy loop variable
+		wg.Add(1)
+		go f(&wg, i)
+	}
+	wg.Wait()
+
+	mu.Lock()
+	defer mu.Unlock()
+
+	total := int64(0)
+	for _, nanos := range mu.nanos {
+		total += nanos
+	}
+
+	minexp, maxexp := float64(0.085), float64(0.115)
+	for i, nanos := range mu.nanos {
+		got := float64(nanos) / float64(total)
+
+		assert.Greaterf(t, got, minexp,
+			"expected proportion > %f, got %f", minexp, got)
+		assert.Lessf(t, got, maxexp,
+			"expected proportion < %f, got %f", maxexp, got)
+
+		t.Logf("%d's got %0.2f%% of total time", i, got*100)
+	}
+}
+
+// TestProportionalGoroutines is a variant of the "serial test" in
+// https://github.com/golang/go/issues/36821. It tests whether goroutines that
+// (should) spend a proportion of time on-CPU have proportionate measured on-CPU
+// time.
+func TestProportionalGoroutines(t *testing.T) {
+	f := func(wg *sync.WaitGroup, v uint64, trip uint64, result *int64) {
+		defer wg.Done()
+
+		ret := v
+		for i := trip; i > 0; i-- {
+			ret += i
+			ret = ret ^ (i + 0xcafebabe)
+		}
+
+		nanos := grunningnanos()
+		atomic.AddInt64(result, nanos)
+	}
+
+	results := make([]int64, 10, 10)
+	var wg sync.WaitGroup
+
+	for iters := 0; iters < 10000; iters++ {
+		for i := uint64(0); i < 10; i++ {
+			i := i // copy loop variable
+			wg.Add(1)
+			go f(&wg, i+1, (i+1)*100000, &results[i])
+		}
+	}
+
+	wg.Wait()
+
+	total := int64(0)
+	for _, result := range results {
+		total += result
+	}
+
+	initial := float64(results[0]) / float64(total)
+	maxdelta := float64(0.5)
+	for i, result := range results {
+		got := float64(result) / float64(total)
+		mult := got / initial
+		assert.InDelta(t, float64(i+1), mult, maxdelta)
+
+		t.Logf("%d's got %0.2f%% of total time (%fx)", i, got*100, mult)
+	}
+}
+
 // BenchmarkMetricNanos measures how costly it is to read the current
 // goroutine's running time when going through the exported runtime metric.
 func BenchmarkMetricNanos(b *testing.B) {
