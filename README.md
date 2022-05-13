@@ -16,7 +16,7 @@ running (assumes you already have `go` installed and in your `PATH`):
 ```sh
 $ git clone git@github.com:irfansharif/runner.git
 $ cd runner
-$ make go # set up submodules and build the modified go runtime
+$ make go # optional; set up submodules and build the modified go runtime
 ```
 
 We can now use the modified Go to run tests:
@@ -24,9 +24,10 @@ We can now use the modified Go to run tests:
 $ modules/go/bin/go test -v .
 ```
 
-To develop using bazel, we need to tell it to build using the modified runtime.
-To do so, edit the following portion of the top-level `WORKSPACE` to point to
-the cloned `go` submodule with the runtime changes:
+Alternatively, you can develop using bazel (which already points to mirrored Go
+SDK's containing the modified runtime changes for darwin, linux and freebsd).
+For unsupported OS/architectures, build the submoduled go as described above
+and point bazel to it using the following:
 
 ```python
 go_local_sdk(

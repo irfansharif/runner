@@ -1,4 +1,4 @@
-workspace(name = "hello")
+workspace(name = "runner")
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
@@ -31,15 +31,20 @@ go_deps()
 
 load(
     "@io_bazel_rules_go//go:deps.bzl",
-    "go_local_sdk",
+    "go_download_sdk",
     "go_rules_dependencies",
 )
 
-# TODO(irfansharif): Point to mirrored, public URL with modified runtime. For
-# now this points to local checkout of go source tree.
-go_local_sdk(
+go_download_sdk(
     name = "go_sdk",
-    path = "/Users/irfansharif/Software/src/github.com/irfansharif/runner/modules/go",
+    sdks = {
+        "darwin_arm64": ("go1.17.6.darwin-arm64.tar.gz", "73b33986a3a4d7a4083b8457f9a62ffbc6803b31b2509c630f33327c5717e4fb"),
+        "darwin_amd64": ("go1.17.6.darwin-amd64.tar.gz", "91f3f14e07acf4322d864e0c4ef70607d4b1e101883c53903568f11b1493becd"),
+        "freebsd_amd64": ("go1.17.6.freebsd-amd64.tar.gz", "6d11cf238eaaad96d51c711f8af9d327e1809403ab1b1b597ac13d0b45dfac76"),
+        "linux_amd64": ("go1.17.6.linux-amd64.tar.gz", "0ebae89c547d57e0e51fa3ad0a8cb4c0d55579afc8c0ad4ea01cde620b282cfa"),
+    },
+    urls = ["https://github.com/irfansharif/utils/blob/master/goroutine-nanos/{}?raw=true"],
+    version = "1.17.6",
 )
 
 go_rules_dependencies()
