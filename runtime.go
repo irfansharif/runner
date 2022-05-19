@@ -25,11 +25,14 @@ import (
 //go:linkname grunningnanos runtime.grunningnanos
 func grunningnanos() int64
 
+//go:linkname nanotime runtime.nanotime
+func nanotime() uint64
+
 // metricnanos returns the running time observed by the current goroutine, but
 // doing it through an exported metric. It's an alternative to grunningnanos
 // that doesn't require the go:linkname directive, though ~5x slower.
 func metricnanos() int64 {
-	const metric = "/goroutine/running:nanoseconds" // from the modified go runtime
+	const metric = "/sched/goroutine/running:nanoseconds" // from the modified go runtime
 
 	sample := []metrics.Sample{
 		{Name: metric},

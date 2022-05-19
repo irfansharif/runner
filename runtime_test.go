@@ -187,6 +187,13 @@ func BenchmarkGRunningNanos(b *testing.B) {
 	}
 }
 
+// BenchmarkNanotime measures how costly it is to read the current nanotime.
+func BenchmarkNanotime(b *testing.B) {
+	for n := 0; n < b.N; n++ {
+		_ = nanotime()
+	}
+}
+
 func TestingBusyFn() {
 	j := 1
 	for i := 0; i < 5000000000; i++ {
