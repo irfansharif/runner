@@ -171,6 +171,53 @@ func TestProportionalGoroutines(t *testing.T) {
 	}
 }
 
+// TestPingPongHog is adapted from a benchmark in the Go runtime, forcing the
+// scheduler to continually schedule goroutines.
+func TestPingPongHog(t *testing.T) {
+	defer runtime.GOMAXPROCS(runtime.GOMAXPROCS(1))
+
+	// Create a CPU hog.
+	stop, done := make(chan bool), make(chan bool)
+	go func() {
+		for {
+			select {
+			case <-stop:
+				done <- true
+				return
+			default:
+			}
+		}
+	}()
+
+	const large = 1000000
+	// Ping-pong b.N times
+	ping, pong := make(chan bool), make(chan bool)
+	var pingern, pongern int64
+	go func() {
+		for j := 0; j < large; j++ {
+			pong <- <-ping
+		}
+		pingern = grunningnanos()
+		close(stop)
+		done <- true
+	}()
+	go func() {
+		for i := 0; i < large; i++ {
+			ping <- <-pong
+		}
+		pongern = grunningnanos()
+		done <- true
+	}()
+	ping <- true // Start ping-pong.
+	<-stop
+	<-ping // Let last ponger exit.
+	<-done // Make sure goroutines exit.
+	<-done
+	<-done
+
+	t.Logf("pinger/ponger = %0.4f", float64(pingern)/float64(pongern))
+}
+
 // BenchmarkMetricNanos measures how costly it is to read the current
 // goroutine's running time when going through the exported runtime metric.
 func BenchmarkMetricNanos(b *testing.B) {
